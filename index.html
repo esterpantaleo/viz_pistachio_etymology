@@ -17,8 +17,28 @@
 <body>
    <div align="center" style="font-size:24px;font-weight:bold">
     The etymology of English "pistachio" and of its cognates
-  </div>
-  <div align="center" id="circle"></div>
+   </div>
+    <table style="font-size:22px;">
+    <col width="20%">
+    <col width="80%">
+    <tr>
+      <td style="padding:30px;">
+        <div>
+           This graph shows all words etymologically related with English word "pistachio" in all languages. Not really all of them... just those present in the English Wiktionary and that we could extract with the <a href="https://tools.wmflabs.org/etytree/">etytree</a> tool. Mouse over any word to see its ancestors and their language. The interior circle represents the legend and shows the set of languages that these words belong to. Mouse over a language to see words that are etymologically related to word "pistachio" in that specific language.
+          </br>
+          </br>
+          In a second version of this visualization, we would like to be able to show the meaning of each word with some interactive gesture.
+          </br>
+          </br>
+          Since there is no clear hierarchy (data cannot be represented with a tree but with a directed graph), in order to sort words, we used hierarchical clustering with the Jaro-Winkler distance and complete linkage.
+        </div>
+      </td>
+      <td>
+        <div align="center" id="circle"></div>
+      </td>
+    </tr>
+  </table>
+
   <div style="font-size:13px"> Data extracted from <a href="https://en.wiktionary.org/wiki/Wiktionary:Main_Page">Wiktionary</a> using <a href="https://tools.wmflabs.org/etytree/">etytree</a>. Visualization using <a href="https://d3js.org/">d3.js</a>. Authored by <a href="https://esterpantaleo.github.io/">Ester Pantaleo</a>.</div>
 </body>
 
