@@ -1,13 +1,13 @@
 {
-  "name": "non_hierarchical_radial",
+  "name": "viz_pistachio_etymology",
   "version": "1.0.0",
   "description": "",
   "main": "script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Ester Pantaleo",
+  "license": "GNU AFFERO GENERAL PUBLIC LICENSE",
   "dependencies": {
     "hierarchical-clustering": "^1.1.0",
     "wink-distance": "^2.0.0"
