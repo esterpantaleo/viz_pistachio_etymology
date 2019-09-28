@@ -1,129 +1,66 @@
 var wink = require('wink-distance');
 var cluster = require('hierarchical-clustering');
 
-var width = 1100;
-var radius = width / 2 - 140;
+//set some parameters
+var width = 1350;
+var radius = width / 2 - 200;
 var legendRadius = 90;
 var dr = 5;
-var L = 0; // number of languages
-var W = 0; //number of words
 var smallSize = "17px";
 var bigSize = "20px";
+
 // used to assign nodes color by group  
 //var color = d3.scale.category20();
 var color = d3.scale.ordinal().domain(d3.range(58)).range(["dodgerblue", "pink", "beige", "slategray", "brown", "red", "orange", "khaki", "#CCCCFF", "turquoise", "mediumslateblue", "purple", "hotpink", "mistyrose", "black", "gold", "#e1ad01", "olive", "teal", "wheat", "blue", "green", "yellow", "grey", "darkgreen", "brown", "slateblue", "#A9A9A9", "orange", "mediumvioletred", "silver", "lime", "teal", "navy", "fuchsia", "maroon","seagreen", "cadetblue", "royalblue", "orchid", "lemonchiffon", "#009b7d", "#19e194", "#ff6a4e", "#ffe4b5", "#812d2a", "#c16873", "indigo", "#CCA9B4", "#9b81ba", "#a1666d"]);
 
 function onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
-}
+};
 
-// Draws an arc diagram for the provided undirected graph
-function drawGraph(graph, languages) {
-
-    languages = d3.nest()
-	.key(function(d) { return d.iso; })
-	.map(languages);
-
-    var nestedData = d3.nest()
-	.key(function(d) { return d.lang; })
-	.entries(graph.nodes)
-	.map(function(d) {
-	    return {
-		"key":  d.key,
-		"values": d.values,
-		"year": languages[d.key][0].year
-	    };
-	})
-	.sort(function(a, b) {
-            return a.year - b.year;
-	});
-
-    graph.nodes = d3.merge(
-	nestedData.map(function(d) { //sort graph.nodes using Jaro-Winkler clustering   
-            var words = d.values.map(function(v) { return v.label; });
-            var levels = cluster({
-		input: words,
-                distance: wink.string.jaroWinkler, //wink.string.levenshtein, // wink.string.jaroWinkler  
-                linkage: "complete",
-                minClusters: 1 // only want clusters containing one element     
-            });
-            var clusters = levels[levels.length - 1].clusters;
-            return clusters.map(function (cluster) {
-                return cluster.map(function (index) {
-                    return d.values[index];
-                })
-            })[0];
+function drawMainArc(thickness, total) {
+    return d3.svg.arc()
+        .innerRadius(radius - 5 - thickness)
+        .outerRadius(radius + thickness)
+        .startAngle(function(d) {
+            var angle = (+d.partialCount - 0.5) * 2 * Math.PI / total;
+            return Math.PI - angle;
         })
-    );
-    
-    // create svg image
-    var svg = d3.select("body")
-	.select("#circle")
-        .append("svg")
-        .attr("width", width)
-        .attr("height", width);
+        .endAngle(function(d) {
+            var angle = (+d.count + d.partialCount - 0.5) * 2 * Math.PI / total;
+            return Math.PI - angle;
+        });
+};
 
-    // define legendData
-    var partialCount = 0;
-    var legendData = nestedData.map(function(d, i) {
-	var toreturn = {
-	    "lang": d.key,
-	    "language": languages[d.key][0].label,
-	    "year": languages[d.key][0].year,
-	    "count": d.values.length,
-	    "partialCount": partialCount,
-	    "color": color(i)
-	};
-	partialCount += toreturn.count;
-	return toreturn;
-    });
-    
-    // add legend to the graph
-    W = graph.nodes.length;
-    var drawArc = function(thickness) {
-	return d3.svg.arc()
-	    .innerRadius(radius-5-thickness)
-	    .outerRadius(radius+thickness)
-	    .startAngle(function(d) {
-		var angle = (+d.partialCount - 0.5) * 2 * Math.PI / W;
-		return Math.PI - angle;
-	    })
-	    .endAngle(function(d) {
-		var angle = (+d.count + d.partialCount - 0.5) * 2 * Math.PI / W;
-		return Math.PI - angle;
-	    });
-    };
+// add legend arcs in the center of the graph                                                                                                            
+function drawLegendArc(thickness, total) {
+    return d3.svg.arc()
+        .innerRadius(legendRadius - thickness)
+        .outerRadius(legendRadius + 10 + thickness)
+        .startAngle(function(d, i) {
+            var angle = - i * 2 * Math.PI / total - Math.PI;
+            return angle;
+        })
+        .endAngle(function(d, i) {
+            var angle = - (i + 1) * 2 * Math.PI / total - Math.PI;
+            return angle;
+        });
+};
 
-    //add legend in the center of the graph
-    L = legendData.length;
-    
-    var drawLegend = function(thickness) {
-	return d3.svg.arc()
-            .innerRadius(legendRadius - thickness)
-            .outerRadius(legendRadius + 10 + thickness)
-            .startAngle(function(d, i) {
-		var angle = - i * 2 * Math.PI / L - Math.PI;
-		return angle;
-	    })
-            .endAngle(function(d, i) {
-		var angle = - (i+1) * 2 * Math.PI / L - Math.PI;
-		return angle;
-	    });
-    };
-    
-    var legend = d3.select("svg")
+function drawLegend(legendData, W) {
+   var legend = d3.select("svg")
 	.selectAll(".arc")
         .data(legendData)
         .enter();
-    
+     
     legend.append("svg:path")
-	.attr("d", drawArc(0))
+	.attr("d", drawMainArc(0, W))
 	.attr("class", "arc-path")
         .attr("fill", function(d) { return d.color; }) 	
 	.attr("transform", "translate(" + (width/2) + "," + (width/2) + ")")
+    //define legend interactivity
 	.on("mouseover", function(d) {
 	    d3.select(this)
-		.attr("d", drawArc(3));
+		.attr("d", drawMainArc(3, W));
 	    d3.selectAll(".legend-text")
 		.filter(function(e) {
 		    return e.lang == d.lang;
@@ -139,7 +76,7 @@ function drawGraph(graph, languages) {
 	})
 	.on("mouseout", function() {
             d3.select(this)
-                .attr("d", drawArc(0));
+                .attr("d", drawMainArc(0, W));
 	    d3.selectAll(".legend-text")
 		.attr("font-weight", "normal")
 		.attr("font-size", smallSize);
@@ -147,12 +84,14 @@ function drawGraph(graph, languages) {
                 .attr("font-weight", "normal")
 		.attr("font-size", smallSize);
         });
-    
+
+    var L = legendData.length;
     legend.append("svg:path")
-	.attr("d", drawLegend(0))
+	.attr("d", drawLegendArc(0, L))
 	.attr("class", "legend-arc")
 	.attr("fill", function(d) { return d.color })
 	.attr("transform", "translate(" + (width/2) + "," + (width/2) + ")")
+    //define legend interactivity
 	.on("mouseover", function(d) {
 	    d3.selectAll(".legend-text")
                 .filter(function(e) {
@@ -164,7 +103,7 @@ function drawGraph(graph, languages) {
 		.filter(function(e) {
                     return e.lang == d.lang;
                 })
-                .attr("d", drawArc(3));
+                .attr("d", drawMainArc(3, W));
 	    d3.selectAll(".node-text")
                 .filter(function(e) {
                     return e.lang == d.lang;
@@ -180,7 +119,7 @@ function drawGraph(graph, languages) {
                 .filter(function(e) {
                     return e.lang == d.lang;
                 })
-                .attr("d", drawArc(0));
+                .attr("d", drawMainArc(0, W));
 	    d3.selectAll(".node-text")
                   .attr("font-weight", "normal")
 		.attr("font-size", smallSize);
@@ -191,26 +130,30 @@ function drawGraph(graph, languages) {
 	.attr("class", "legend-text")
 	.attr("transform", function(d, i) {
 	    var angle = 90 - (i + 1/2) * 360 / L;
-	    return "translate(" + (width/2) + "," + (width/2) + ")" + "rotate(" +  angle + " )translate(" + (legendRadius + 10 + 3) + "," + 0 + ")" + ((angle + 90 > 0) ? "" : "rotate(180)");
+	    return "translate(" + (width/2) + "," + (width/2) + ")" +
+		"rotate(" +  angle + ")" +
+		"translate(" + (legendRadius + 10 + 3) + "," + 0 + ")" +
+		((angle + 90 > 0) ? "" : "rotate(180)");
 	})
 	.attr("text-anchor", function(d, i) {	    
 	    var angle = 90 - (i + 1/2)  * 360 / L;
-	    return (angle + 90 > 0)? "start" : "end";
+	    return (angle + 90 > 0) ? "start" : "end";
 	})
 	.attr("font-size", smallSize)
 	.text(function(d, i) {
 	    return d.language;
 	})
+    //define legend text interactivity
 	.on("mouseover", function(d) {
 	    d3.select(this)
-		.attr("d", drawLegend(3));
+		.attr("d", drawLegendArc(3, L));
 	    d3.select(this)
 		.attr("font-weight", "bold");
 	    d3.selectAll(".arc-path")
                 .filter(function(e) {
                     return e.lang == d.lang;
 	        })
-                .attr("d", drawArc(3));
+                .attr("d", drawMainArc(3, W));
 	    d3.selectAll(".node-text")
                 .filter(function(e) {
                     return e.lang == d.lang;
@@ -219,36 +162,18 @@ function drawGraph(graph, languages) {
 	})
 	.on("mouseout", function(d) {
             d3.select(this)
-		.attr("d", drawLegend(0));
+		.attr("d", drawLegendArc(0, L));
 	    d3.select(this)
                 .attr("font-weight", "normal");
 	    d3.selectAll(".arc-path")
                 .filter(function(e) {
                     return e.lang == d.lang;
 	        })
-                .attr("d", drawArc(0));
+                .attr("d", drawMainArc(0, W));
 	    d3.selectAll(".node-text")
                 .attr("font-weight", "normal");
         });
-        
-    // create plot area within svg image
-    var plot = svg.append("g")
-        .attr("id", "plot")
-        .attr("transform", "translate(" + width/2 + ", " + width/2 + ")");
-        
-    // fix graph links to map to objects instead of indices
-    graph.links.forEach(function(d, i) {
-        d.source = isNaN(d.source) ? d.source : graph.nodes.filter(function(n) { return n.id == d.source; })[0];
-        d.target = isNaN(d.target) ? d.target : graph.nodes.filter(function(n) { return n.id == d.target; })[0];
-    });
-    
-    // calculate node positions
-    circleLayout(graph.nodes);
-    
-    drawCurves(graph.nodes, graph.links);
-    
-    drawNodes(graph.nodes, graph.links);
-}
+};
 
 // Calculates node locations
 function circleLayout(nodes) {
@@ -267,13 +192,14 @@ function circleLayout(nodes) {
         d.x = radial * Math.sin(theta);
         d.y = radial * Math.cos(theta);
 	d.theta = 180 * theta/Math.PI;
-	d.theta = d.theta > 0 ? d.theta : d.theta+360;
+	d.theta = d.theta > 0 ? d.theta : d.theta + 360;
     });
-}
+};
 
 // Draws nodes with tooltips
-function drawNodes(nodes, links) {
-    var node = d3.select("#plot").selectAll(".node")
+function drawNodesGivenLinks(nodes, links) {
+    var node = d3.select("#plot")
+	.selectAll(".node")
         .data(nodes)
         .enter();
     
@@ -281,9 +207,11 @@ function drawNodes(nodes, links) {
         .attr("dy", "0.31em")
         .attr("class", "node-text")
         .attr("transform", function(d) {
-            return "rotate(" + (90 - d.theta) +" )translate(" + (radius + 3) + ",0)" + ((d.theta < 180) ? "" : "rotate(180)");
+            return "rotate(" + (90 - d.theta) + ")" +
+		"translate(" + (radius + 3) + ",0)" +
+		((d.theta < 180) ? "" : "rotate(180)");
         })
-        .attr("text-anchor", function(d) { return (d.theta < 180)? "start" : "end"; })
+        .attr("text-anchor", function(d) { return (d.theta < 180) ? "start" : "end"; })
         .attr("font-size", smallSize)
         .text(function(d) { return d.label; });
 
@@ -291,13 +219,13 @@ function drawNodes(nodes, links) {
 	var tmp = links.filter(function(l) { return l.target.id == d.id; });
         d.parentsLinksId = tmp.map(function(l) { return l.id; })
 	    .filter(onlyUnique);
-        d.parentsId = tmp.map(function(l) { return l.source.id; }).filter(onlyUnique);
+        d.parentsId = tmp.map(function(l) { return l.source.id; })
+	    .filter(onlyUnique);
         d.ancestorsLinksId = [];
     });
 
     var getNodesWithIds = function(ids) {
 	var toreturn = [];
-
 	nodeText.each(function(d) {
 	    if (ids.includes(d.id))
 		toreturn.push(d);
@@ -305,7 +233,8 @@ function drawNodes(nodes, links) {
 	return toreturn;
     }
 
-    nodeText.each(function(d) {// define ancestorsLinksId, ancestorsId and ancestorsLanguages
+    // define ancestorsLinksId, ancestorsId and ancestorsLanguages using iterative approach
+    nodeText.each(function(d) {
 	//initialize parentsId
 	var parentsId = d.parentsId;
 	var ids = parentsId;
@@ -337,13 +266,9 @@ function drawNodes(nodes, links) {
 	})
 	    .map(function(e) { return e.lang; })
 	    .filter(onlyUnique);
-	//d.descendantsCount = 0;
-    });		     
-   /*
-    nodeText.each(function(d) {
-	nodeText.each(function(n) { if (n.ancestorsId.includes(d.id)) d.descendantsCount += 1; });
     });
-   */  
+
+    //define interactivity of node texts
     nodeText.on("mouseover", function(d) {
         d3.selectAll(".link")
             .classed("link-active", function(l) {
@@ -382,10 +307,10 @@ function drawNodes(nodes, links) {
 		.attr("font-weight", "normal")
 		.attr("font-size", smallSize);
         });
-}
+};
 
 // Draws curved edges between nodes
-function drawCurves(nodes, links) {    
+function drawLinksGivenNodes(nodes, links) {    
     d3.select("#plot").selectAll(".link")
         .data(links)
         .enter()
@@ -410,7 +335,7 @@ function drawCurves(nodes, links) {
             return `M${lineData[0].x},${lineData[0].y}C${lineData[1].x},${lineData[1].y},${lineData[2].x},${lineData[2].y},${lineData[3].x},${lineData[3].y} `;
         })
 	.attr("id", function(d) { return d.id; })
-	.attr("stroke",  "#888888")
+	.attr("stroke", "#888888")
 	.on("mouseover", function(d) {
 	    d3.selectAll(".node-text")
 		.filter(function(e) {
@@ -422,11 +347,90 @@ function drawCurves(nodes, links) {
             d3.selectAll(".node-text")
                 .attr("font-weight", "normal");
 	});
-}
+};
 
-var dsv = d3.dsv(";","text/plain");
-dsv("languages.csv", function(l) {
-    d3.json("graph.json", function(d) {
-	drawGraph(d, l);
+function drawGraph(graph, legend) {
+    // create svg image                                                                                                                                  
+    var svg = d3.select("body")
+        .select("#circle")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", width);
+    
+    drawLegend(legend, graph.nodes.length);
+    
+    // create plot area within svg image                                                                                                                
+    var plot = svg.append("g")
+        .attr("id", "plot")
+        .attr("transform", "translate(" + width/2 + ", " + width/2 + ")");
+    
+    // fix graph links to map to objects instead of indices                                                                                              
+    graph.links.forEach(function(d, i) {
+        d.source = isNaN(d.source) ? d.source : graph.nodes.filter(function(n) { return n.id == d.source; })[0];
+        d.target = isNaN(d.target) ? d.target : graph.nodes.filter(function(n) { return n.id == d.target; })[0];
     });
-})
+    
+    // calculate node positions                                                                                                                          
+    circleLayout(graph.nodes);
+    drawLinksGivenNodes(graph.nodes, graph.links);
+    drawNodesGivenLinks(graph.nodes, graph.links);
+};
+
+var dsv = d3.dsv(";", "text/plain");
+dsv("languages.csv", function(languages) {
+    d3.json("graph.json", function(graph) {
+	//preprocess data
+	languages = d3.nest()
+            .key(function(d) { return d.iso; })
+            .map(languages);
+	
+	var nestedData = d3.nest()
+            .key(function(d) { return d.lang; })
+	    .entries(graph.nodes)
+	    .map(function(d) {
+		return {
+		    "key":  d.key,
+		    "values": d.values,
+		    "year": languages[d.key][0].year
+		};
+	    })
+            .sort(function(a, b) {
+		return a.year - b.year;
+	    });
+	
+	graph.nodes = d3.merge(
+	    nestedData.map(function(d) { //sort graph.nodes using Jaro-Winkler clustering       
+		var words = d.values.map(function(v) { return v.label; });
+		var levels = cluster({
+		    input: words,
+		    distance: wink.string.jaroWinkler, //wink.string.levenshtein    
+		    linkage: "complete",
+		    minClusters: 1 // only want clusters containing one element    
+		});
+		var clusters = levels[levels.length - 1].clusters;
+		return clusters.map(function (cluster) {
+		    return cluster.map(function (index) {
+			return d.values[index];
+		    })
+		})[0];
+            })
+	);
+	
+	// define legend   
+	var partialCount = 0;
+	var legend = nestedData.map(function(d, i) {
+            var toreturn = {
+		"lang": d.key,
+		"language": languages[d.key][0].label,
+		"year": languages[d.key][0].year,
+		"count": d.values.length,
+		"partialCount": partialCount,
+		"color": color(i)
+            };
+            partialCount += toreturn.count;
+            return toreturn;
+	});
+
+	drawGraph(graph, legend);
+    })
+});
